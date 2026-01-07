@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'shared/widgets/custombutton.dart';
+import 'shared/widgets/customappbar.dart';
+import 'shared/widgets/tabtext.dart';
 
 void main() {
   runApp(const MyApp());
@@ -12,11 +14,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Probatio',
       theme: ThemeData(
         colorScheme: .fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const MyHomePage(title: 'API Client'),
     );
   }
 }
@@ -38,18 +40,40 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  
+
  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-      ),
-      body: Center(
-        child: CustomButton(
-          text: 'Press Me',
-          onPressed: _incrementCounter, 
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: CustomAppBar(
+      title: widget.title,
+    ),
+    body: Column(
+      children: [
+        // 👇 your clickable words row
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              TabText(text: 'Request', onTap: () {}),
+              TabText(text: 'Saved', onTap: () {}),
+              TabText(text: 'Collections', onTap: () {}),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+
+        // rest of your screen
+        Expanded(
+          child: Center(
+            child: CustomButton(
+              text: 'Press Me',
+              onPressed: _incrementCounter,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }
