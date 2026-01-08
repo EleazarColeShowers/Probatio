@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'shared/widgets/custombutton.dart';
 import 'shared/widgets/customappbar.dart';
 import 'shared/widgets/tabtext.dart';
+import 'features/api_requests/presentation/pages/request_page.dart';
+import 'features/api_requests/presentation/pages/saved_request_page.dart';
+import 'features/collections/presentation/pages/collection_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,13 +13,12 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Probatio',
       theme: ThemeData(
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       home: const MyHomePage(title: 'API Client'),
     );
@@ -32,48 +34,65 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  int _selectedIndex = 0; // 0 = Request, 1 = Saved, 2 = Collections
 
-  void _incrementCounter() {
+  void _onTabSelected(int index) {
     setState(() {
-      _counter++;
+      _selectedIndex = index;
     });
   }
 
-  
+  Widget _getCurrentPage() {
+    switch (_selectedIndex) {
+      case 0:
+        return const RequestPage();
+      case 1:
+        return const SavedPage();
+      case 2:
+        return const CollectionsPage();
+      default:
+        return const RequestPage();
+    }
+  }
 
- @override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: CustomAppBar(
-      title: widget.title,
-    ),
-    body: Column(
-      children: [
-        // 👇 your clickable words row
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              TabText(text: 'Request', onTap: () {}),
-              TabText(text: 'Saved', onTap: () {}),
-              TabText(text: 'Collections', onTap: () {}),
-            ],
-          ),
-        ),
-
-        // rest of your screen
-        Expanded(
-          child: Center(
-            child: CustomButton(
-              text: 'Press Me',
-              onPressed: _incrementCounter,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: CustomAppBar(
+        title: widget.title,
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                TabText(
+                  text: 'Request',
+                  onTap: () => _onTabSelected(0),
+                  isSelected: _selectedIndex == 0,
+                ),
+                TabText(
+                  text: 'Saved',
+                  onTap: () => _onTabSelected(1),
+                  isSelected: _selectedIndex == 1,
+                ),
+                TabText(
+                  text: 'Collections',
+                  onTap: () => _onTabSelected(2),
+                  isSelected: _selectedIndex == 2,
+                ),
+              ],
             ),
           ),
-        ),
-      ],
-    ),
-  );
-}
+
+          // Display the selected page content
+          Expanded(
+            child: _getCurrentPage(),
+          ),
+        ],
+      ),
+    );
+  }
 }
