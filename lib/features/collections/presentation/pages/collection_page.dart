@@ -91,7 +91,7 @@ class _CollectionsPageState extends State<CollectionsPage> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Row(
+              Column(
                 children: [
                   if (selectedCollection != null) ...[
                     OutlinedButton.icon(
