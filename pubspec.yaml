@@ -45,6 +45,9 @@ dependencies:
   # Utilities
   intl: ^0.19.0                   # Date formatting
 
+  #Network
+  internet_connection_checker: ^1.0.0+1
+
 
 
   # The following adds the Cupertino Icons font to your application.
