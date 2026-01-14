@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'features/api_requests/presentation/bloc/request_bloc.dart';
+import 'injection_container.dart' as di;
 import 'shared/widgets/customappbar.dart';
 import 'shared/widgets/tabtext.dart';
 import 'features/api_requests/presentation/pages/request_page.dart';
@@ -19,7 +22,10 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
-      home: const MyHomePage(title: 'API Client'),
+      home: BlocProvider(
+        create: (_) => di.sl<RequestBloc>(),
+        child: const MyHomePage(title: 'Probatio'),
+      ),
     );
   }
 }

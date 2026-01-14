@@ -48,6 +48,9 @@ dependencies:
   #Network
   internet_connection_checker: ^1.0.0+1
 
+  # Dependency Injection (THIS IS WHAT YOU NEED)
+  get_it: ^7.6.4
+
 
 
   # The following adds the Cupertino Icons font to your application.
