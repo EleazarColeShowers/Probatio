@@ -17,4 +17,10 @@ class ApiResponse extends Equatable{
 
   @override
   List<Object?> get props => [statusCode, headers, body, responseTime];
+
+  bool get isSuccess => statusCode >= 200 && statusCode < 300;
+
+  // Helper getter for response status color
+  bool get isError => statusCode >= 400;
+  bool get isRedirect => statusCode >= 300 && statusCode < 400;
 }
