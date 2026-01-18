@@ -10,6 +10,15 @@ import 'features/api_requests/domain/usecases/delete_request.dart';
 import 'features/api_requests/domain/usecases/get_saved_requests.dart';
 import 'features/api_requests/domain/usecases/save_request.dart';
 import 'features/api_requests/domain/usecases/send_request.dart';
+import 'features/collections/data/datasources/collection_local_datasource.dart';
+import 'features/collections/data/repositories/collection_repository_impl.dart';
+import 'features/collections/domain/repositories/collection_repository.dart';
+import 'features/collections/domain/usecases/add_request_to_collection.dart';
+import 'features/collections/domain/usecases/create_collection.dart';
+import 'features/collections/domain/usecases/delete_collection.dart';
+import 'features/collections/domain/usecases/get_collections.dart';
+import 'features/collections/domain/usecases/remove_request_from_collection.dart';
+import 'features/collections/presentation/bloc/collection_bloc.dart';
 
 
 final sl = GetIt.instance; // Service Locator
@@ -50,6 +59,35 @@ Future<void> init() async {
 
   sl.registerLazySingleton<RequestLocalDataSource>(
         () => RequestLocalDataSourceImpl(),
+  );
+
+  sl.registerFactory(
+        () => CollectionBloc(
+      createCollection: sl(),
+      getCollections: sl(),
+      deleteCollection: sl(),
+      addRequestToCollection: sl(),
+      removeRequestFromCollection: sl(),
+    ),
+  );
+
+  // Use Cases
+  sl.registerLazySingleton(() => CreateCollection(sl()));
+  sl.registerLazySingleton(() => GetCollections(sl()));
+  sl.registerLazySingleton(() => DeleteCollection(sl()));
+  sl.registerLazySingleton(() => AddRequestToCollection(sl()));
+  sl.registerLazySingleton(() => RemoveRequestFromCollection(sl()));
+
+  // Repository
+  sl.registerLazySingleton<CollectionRepository>(
+        () => CollectionRepositoryImpl(
+      localDataSource: sl(),
+    ),
+  );
+
+  // Data Sources
+  sl.registerLazySingleton<CollectionLocalDataSource>(
+        () => CollectionLocalDataSourceImpl(),
   );
 
   // ============================================

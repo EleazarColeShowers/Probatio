@@ -27,7 +27,7 @@ class RequestLocalDataSourceImpl implements RequestLocalDataSource {
 
       final requestWithId = request.copyWith(
         id: id,
-        createdAt: request.createdAt ?? DateTime.now(),
+        createdAt: request.createdAt,
       );
 
       await requestBox.put(id, requestWithId.toJson());
