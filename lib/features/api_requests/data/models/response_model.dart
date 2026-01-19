@@ -15,14 +15,14 @@ class ResponseModel extends ApiResponse {
     required String statusMessage,
     required Map<String, String> headers,
     required String body,
-    required int durationMs,
+    required int responseTime,
   }) {
     return ResponseModel(
       statusCode: statusCode,
       statusMessage: statusMessage,
       headers: headers,
       body: body,
-      responseTime: Duration(milliseconds: durationMs),
+      responseTime: responseTime,
     );
   }
 }

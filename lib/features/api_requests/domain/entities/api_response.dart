@@ -5,7 +5,7 @@ class ApiResponse extends Equatable{
   final String statusMessage;
   final Map<String, String> headers;
   final String body;
-  final Duration responseTime;
+  final int responseTime;
 
   const ApiResponse({
     required this.statusCode,
@@ -23,4 +23,6 @@ class ApiResponse extends Equatable{
   // Helper getter for response status color
   bool get isError => statusCode >= 400;
   bool get isRedirect => statusCode >= 300 && statusCode < 400;
+  int get duration => responseTime;
+
 }

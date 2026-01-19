@@ -72,7 +72,7 @@ class RequestRemoteDataSourceImpl implements RequestRemoteDataSource {
         statusMessage: response.reasonPhrase ?? 'Unknown',
         headers: responseHeaders,
         body: response.body,
-        durationMs: duration,
+        responseTime: duration,
       );
 
     } catch (e) {

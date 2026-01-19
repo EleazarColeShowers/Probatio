@@ -4,7 +4,7 @@ import '../../domain/entities/api_request.dart';
 import '../bloc/request_bloc.dart';
 import '../bloc/request_event.dart';
 import '../bloc/request_state.dart';
-import 'request_page.dart'; // Your main request page
+import 'request_page.dart';
 
 class SavedPage extends StatefulWidget {
   const SavedPage({Key? key}) : super(key: key);
@@ -13,28 +13,39 @@ class SavedPage extends StatefulWidget {
   State<SavedPage> createState() => _SavedPageState();
 }
 
-class _SavedPageState extends State<SavedPage> {
+class _SavedPageState extends State<SavedPage> with SingleTickerProviderStateMixin {
+  late AnimationController _fabAnimationController;
+
   @override
   void initState() {
     super.initState();
-    // Load saved requests when page opens
     context.read<RequestBloc>().add(GetSavedRequestsEvent());
+    _fabAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    )..forward();
+  }
+
+  @override
+  void dispose() {
+    _fabAnimationController.dispose();
+    super.dispose();
   }
 
   Color _getMethodColor(String method) {
     switch (method.toUpperCase()) {
       case 'GET':
-        return Colors.green;
+        return const Color(0xFF10B981);
       case 'POST':
-        return Colors.blue;
+        return const Color(0xFF3B82F6);
       case 'PUT':
-        return Colors.orange;
+        return const Color(0xFFF59E0B);
       case 'PATCH':
-        return Colors.purple;
+        return const Color(0xFF8B5CF6);
       case 'DELETE':
-        return Colors.red;
+        return const Color(0xFFEF4444);
       default:
-        return Colors.grey;
+        return const Color(0xFF6B7280);
     }
   }
 
@@ -47,11 +58,11 @@ class _SavedPageState extends State<SavedPage> {
     if (difference.inMinutes < 1) {
       return 'Just now';
     } else if (difference.inHours < 1) {
-      return '${difference.inMinutes} min ago';
+      return '${difference.inMinutes}m ago';
     } else if (difference.inDays < 1) {
-      return '${difference.inHours} hours ago';
+      return '${difference.inHours}h ago';
     } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
+      return '${difference.inDays}d ago';
     } else {
       return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
     }
@@ -61,21 +72,37 @@ class _SavedPageState extends State<SavedPage> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Request'),
-        content: Text('Are you sure you want to delete "${request.name}"?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete Request?'),
+        content: Text.rich(
+          TextSpan(
+            text: 'This will permanently delete ',
+            style: const TextStyle(fontSize: 15),
+            children: [
+              TextSpan(
+                text: '"${request.name}"',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const TextSpan(text: '. This action cannot be undone.'),
+            ],
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text(
+              'Cancel',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              context.read<RequestBloc>().add(
-                DeleteRequestEvent(request.id!),
-              );
+              context.read<RequestBloc>().add(DeleteRequestEvent(request.id!));
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -84,7 +111,6 @@ class _SavedPageState extends State<SavedPage> {
   }
 
   void _loadRequestInEditor(BuildContext context, ApiRequest request) {
-    // Navigate to request page with pre-filled data
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -99,58 +125,114 @@ class _SavedPageState extends State<SavedPage> {
   void _showRequestOptions(BuildContext context, ApiRequest request) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 20),
+              _buildSheetOption(
+                icon: Icons.edit_rounded,
+                label: 'Edit Request',
+                color: const Color(0xFF3B82F6),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _loadRequestInEditor(context, request);
+                },
+              ),
+              _buildSheetOption(
+                icon: Icons.send_rounded,
+                label: 'Send Now',
+                color: const Color(0xFF10B981),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  context.read<RequestBloc>().add(SendRequestEvent(request));
+                  _showSendingSnackbar(context);
+                },
+              ),
+              _buildSheetOption(
+                icon: Icons.content_copy_rounded,
+                label: 'Duplicate',
+                color: const Color(0xFFF59E0B),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  final duplicate = ApiRequest(
+                    name: '${request.name} (Copy)',
+                    url: request.url,
+                    method: request.method,
+                    headers: request.headers != null
+                        ? Map<String, String>.from(request.headers!)
+                        : {},
+                    body: request.body,
+                    createdAt: DateTime.now(),
+                  );
+                  context.read<RequestBloc>().add(SaveRequestEvent(duplicate));
+                },
+              ),
+              _buildSheetOption(
+                icon: Icons.delete_rounded,
+                label: 'Delete',
+                color: const Color(0xFFEF4444),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _showDeleteConfirmation(context, request);
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
       ),
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.edit, color: Colors.blue),
-              title: const Text('Edit Request'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _loadRequestInEditor(context, request);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.send, color: Colors.green),
-              title: const Text('Send Now'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                context.read<RequestBloc>().add(SendRequestEvent(request));
-                _showSendingSnackbar(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.copy, color: Colors.orange),
-              title: const Text('Duplicate'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                final duplicate = ApiRequest(
-                  name: '${request.name} (Copy)',
-                  url: request.url,
-                  method: request.method,
-                  headers: request.headers != null
-                      ? Map<String, String>.from(request.headers!)
-                      : {},
-                  body: request.body,
-                  createdAt: DateTime.now(),
-                );
-                context.read<RequestBloc>().add(SaveRequestEvent(duplicate));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text('Delete'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                _showDeleteConfirmation(context, request);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
+    );
+  }
+
+  Widget _buildSheetOption({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -158,9 +240,24 @@ class _SavedPageState extends State<SavedPage> {
 
   void _showSendingSnackbar(BuildContext context) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Sending request...'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: const Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
+            ),
+            SizedBox(width: 12),
+            Text('Sending request...'),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: Colors.black87,
       ),
     );
   }
@@ -168,16 +265,27 @@ class _SavedPageState extends State<SavedPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFAFAFA),
       appBar: AppBar(
-        title: const Text('Saved Requests'),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Saved Requests',
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded, color: Colors.black87),
             onPressed: () {
               context.read<RequestBloc>().add(GetSavedRequestsEvent());
             },
             tooltip: 'Refresh',
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: BlocConsumer<RequestBloc, RequestState>(
@@ -185,8 +293,18 @@ class _SavedPageState extends State<SavedPage> {
           if (state is RequestError) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
+                content: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(state.message)),
+                  ],
+                ),
+                backgroundColor: const Color(0xFFEF4444),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             );
           }
@@ -194,66 +312,92 @@ class _SavedPageState extends State<SavedPage> {
           if (state is RequestDeleted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.green,
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(state.message)),
+                  ],
+                ),
+                backgroundColor: const Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             );
           }
 
           if (state is RequestSaved) {
-            // Reload the list after saving
             context.read<RequestBloc>().add(GetSavedRequestsEvent());
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.green,
+                content: Row(
+                  children: [
+                    const Icon(Icons.check_circle, color: Colors.white),
+                    const SizedBox(width: 12),
+                    Expanded(child: Text(state.message)),
+                  ],
+                ),
+                backgroundColor: const Color(0xFF10B981),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             );
           }
 
           if (state is RequestSent) {
-            // Show response in a dialog or navigate to response viewer
             _showResponseDialog(context, state.response);
           }
         },
         builder: (context, state) {
-          // Loading state
           if (state is RequestLoading) {
             return const Center(
-              child: CircularProgressIndicator(),
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+              ),
             );
           }
 
-          // Empty state
           if (state is RequestsLoaded && state.requests.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.inbox_outlined,
-                    size: 80,
-                    color: Colors.grey[400],
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.inventory_2_outlined,
+                      size: 64,
+                      color: Colors.grey.shade400,
+                    ),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
+                  const SizedBox(height: 24),
+                  const Text(
                     'No saved requests yet',
                     style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Create and save your first API request',
+                    'Create your first API request to get started',
                     style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
+                      fontSize: 15,
+                      color: Colors.grey.shade600,
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
+                  const SizedBox(height: 32),
+                  FilledButton.icon(
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -265,105 +409,153 @@ class _SavedPageState extends State<SavedPage> {
                         ),
                       );
                     },
-                    icon: const Icon(Icons.add),
+                    icon: const Icon(Icons.add_rounded),
                     label: const Text('Create Request'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF3B82F6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 16,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                   ),
                 ],
               ),
             );
           }
 
-          // Loaded state with data
           if (state is RequestsLoaded) {
             return RefreshIndicator(
               onRefresh: () async {
                 context.read<RequestBloc>().add(GetSavedRequestsEvent());
-                // Wait a bit for the state to update
                 await Future.delayed(const Duration(milliseconds: 500));
               },
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                color: Colors.white,
-                child: ListView.separated(
-                  itemCount: state.requests.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 16),
-                  itemBuilder: (context, index) {
-                    final request = state.requests[index];
-                    return _buildRequestCard(context, request);
-                  },
-                ),
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: state.requests.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final request = state.requests[index];
+                  return _buildRequestCard(context, request, index);
+                },
               ),
             );
           }
 
-          // Default/error fallback
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                const Text('Something went wrong'),
-                const SizedBox(height: 16),
-                ElevatedButton(
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.error_outline_rounded,
+                    size: 64,
+                    color: Colors.red.shade400,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Something went wrong',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
                   onPressed: () {
                     context.read<RequestBloc>().add(GetSavedRequestsEvent());
                   },
-                  child: const Text('Retry'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF3B82F6),
+                  ),
+                  child: const Text('Try Again'),
                 ),
               ],
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BlocProvider.value(
-                value: context.read<RequestBloc>(),
-                child: const RequestPage(),
+      floatingActionButton: ScaleTransition(
+        scale: _fabAnimationController,
+        child: FloatingActionButton.extended(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BlocProvider.value(
+                  value: context.read<RequestBloc>(),
+                  child: const RequestPage(),
+                ),
               ),
-            ),
-          );
-        },
-        child: const Icon(Icons.add),
+            );
+          },
+          icon: const Icon(Icons.add_rounded),
+          label: const Text('New Request'),
+          backgroundColor: const Color(0xFF3B82F6),
+          elevation: 4,
+        ),
       ),
     );
   }
 
-  Widget _buildRequestCard(BuildContext context, ApiRequest request) {
+  Widget _buildRequestCard(BuildContext context, ApiRequest request, int index) {
     return Dismissible(
       key: Key(request.id ?? request.url),
       direction: DismissDirection.endToStart,
       background: Container(
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+        padding: const EdgeInsets.only(right: 24),
         decoration: BoxDecoration(
-          color: Colors.red,
-          borderRadius: BorderRadius.circular(8),
+          color: const Color(0xFFEF4444),
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: const Icon(
-          Icons.delete,
-          color: Colors.white,
-          size: 32,
+        child: const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_rounded, color: Colors.white, size: 28),
+            SizedBox(height: 4),
+            Text(
+              'Delete',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
       confirmDismiss: (direction) async {
         return await showDialog(
           context: context,
           builder: (dialogContext) => AlertDialog(
-            title: const Text('Delete Request'),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Text('Delete Request?'),
             content: Text('Delete "${request.name}"?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancel'),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: Colors.grey.shade700),
+                ),
               ),
-              TextButton(
+              FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFEF4444),
+                ),
                 child: const Text('Delete'),
               ),
             ],
@@ -373,113 +565,106 @@ class _SavedPageState extends State<SavedPage> {
       onDismissed: (direction) {
         context.read<RequestBloc>().add(DeleteRequestEvent(request.id!));
       },
-      child: InkWell(
-        onTap: () => _loadRequestInEditor(context, request),
-        onLongPress: () => _showRequestOptions(context, request),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: Colors.grey.shade200,
-              width: 1,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        elevation: 0,
+        child: InkWell(
+          onTap: () => _loadRequestInEditor(context, request),
+          onLongPress: () => _showRequestOptions(context, request),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(16),
             ),
-          ),
-          child: Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    // Method Badge
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                        horizontal: 12,
+                        vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: _getMethodColor(request.method).withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(4),
+                        color: _getMethodColor(request.method).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: _getMethodColor(request.method).withOpacity(0.3),
+                          width: 1,
+                        ),
                       ),
                       child: Text(
                         request.method,
                         style: TextStyle(
                           color: _getMethodColor(request.method),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
-                    // More Options Button
-                    IconButton(
-                      icon: const Icon(Icons.more_vert, size: 20),
-                      onPressed: () => _showRequestOptions(context, request),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(),
+                    const Spacer(),
+                    Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () => _showRequestOptions(context, request),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(
+                            Icons.more_vert_rounded,
+                            size: 20,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                // Request Name
+                const SizedBox(height: 14),
                 Text(
                   request.name,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 17,
                     fontWeight: FontWeight.w600,
                     color: Colors.black87,
+                    letterSpacing: -0.3,
                   ),
                 ),
-                const SizedBox(height: 8),
-                // URL
+                const SizedBox(height: 6),
                 Text(
                   request.url,
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.grey.shade700,
+                    color: Colors.grey.shade600,
+                    height: 1.4,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 12),
-                // Footer with timestamp and badges
-                Row(
+                const SizedBox(height: 16),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
                   children: [
-                    Icon(Icons.access_time, size: 14, color: Colors.grey.shade600),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatTimestamp(request.createdAt),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
+                    _buildMetaChip(
+                      icon: Icons.schedule_rounded,
+                      label: _formatTimestamp(request.createdAt),
                     ),
-                    if ((request.headers?.isNotEmpty ?? false)) ...[
-                      const SizedBox(width: 12),
-                      Icon(Icons.article, size: 14, color: Colors.grey.shade600),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${request.headers!.length} headers',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
+                    if (request.headers?.isNotEmpty ?? false)
+                      _buildMetaChip(
+                        icon: Icons.list_alt_rounded,
+                        label: '${request.headers!.length} headers',
                       ),
-                    ],
-                    if (request.body != null && request.body!.isNotEmpty) ...[
-                      const SizedBox(width: 12),
-                      Icon(Icons.description, size: 14, color: Colors.grey.shade600),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Has body',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
+                    if (request.body != null && request.body!.isNotEmpty)
+                      _buildMetaChip(
+                        icon: Icons.description_rounded,
+                        label: 'Has body',
                       ),
-                    ],
                   ],
                 ),
               ],
@@ -490,18 +675,59 @@ class _SavedPageState extends State<SavedPage> {
     );
   }
 
+  Widget _buildMetaChip({required IconData icon, required String label}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.grey.shade600),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showResponseDialog(BuildContext context, response) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Row(
           children: [
-            Icon(
-              response.isSuccess ? Icons.check_circle : Icons.error,
-              color: response.isSuccess ? Colors.green : Colors.red,
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: response.isSuccess
+                    ? const Color(0xFF10B981).withOpacity(0.1)
+                    : const Color(0xFFEF4444).withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                response.isSuccess ? Icons.check_circle_rounded : Icons.error_rounded,
+                color: response.isSuccess
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFEF4444),
+                size: 24,
+              ),
             ),
-            const SizedBox(width: 8),
-            Text('Status: ${response.statusCode}'),
+            const SizedBox(width: 12),
+            Text(
+              'Status ${response.statusCode}',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
           ],
         ),
         content: SingleChildScrollView(
@@ -509,16 +735,45 @@ class _SavedPageState extends State<SavedPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Time: ${response.durationMs}ms'),
-              const Divider(height: 24),
-              const Text(
-                'Response Body:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(12),
-                color: Colors.grey[100],
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.schedule_rounded, size: 16, color: Colors.grey.shade700),
+                    const SizedBox(width: 8),
+                    Text(
+                      '${response.duration}ms',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.grey.shade800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Response Body',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                  color: Colors.grey.shade700,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
                 child: Text(
                   response.body.length > 500
                       ? '${response.body.substring(0, 500)}...'
@@ -526,6 +781,7 @@ class _SavedPageState extends State<SavedPage> {
                   style: const TextStyle(
                     fontFamily: 'monospace',
                     fontSize: 12,
+                    height: 1.5,
                   ),
                 ),
               ),
@@ -533,8 +789,14 @@ class _SavedPageState extends State<SavedPage> {
           ),
         ),
         actions: [
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.pop(dialogContext),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF3B82F6),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
             child: const Text('Close'),
           ),
         ],
@@ -542,22 +804,3 @@ class _SavedPageState extends State<SavedPage> {
     );
   }
 }
-
-// ============================================
-// FEATURES ADDED:
-// ============================================
-// ✓ Loads real data from BLoC on page open
-// ✓ Pull-to-refresh to reload requests
-// ✓ Tap to edit request (opens in editor)
-// ✓ Long press for options menu
-// ✓ Swipe-to-delete with confirmation
-// ✓ Send request directly from saved list
-// ✓ Duplicate requests
-// ✓ Empty state with "Create Request" button
-// ✓ Loading indicator
-// ✓ Error handling with retry
-// ✓ Real timestamp formatting
-// ✓ Response dialog when sending
-// ✓ Floating action button to create new request
-// ✓ Shows request metadata (headers, body)
-// ============================================
